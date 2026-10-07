@@ -1,0 +1,328 @@
+From c22247432263d384d01a4639f6165a5f1a39f3b2 Mon Sep 17 00:00:00 2001
+From: SIGF <noreply@sigf.ai>
+Date: Wed, 7 Oct 2026 01:24:05 +0200
+Subject: [PATCH] Load libsm64 at runtime from sm64.dll instead of compiling it
+ into er_mario.dll
+
+er_mario.dll no longer contains libsm64 (SM64's decompiled code and Mario's
+mesh from the SM64 decompilation). src/sm64.rs keeps the same 30 functions
+with the same names and signatures; each now calls the function of that name
+in sm64.dll, loaded once with LoadLibraryW from the mod folder (next to
+er_mario.dll) and resolved with GetProcAddress. build.rs, which compiled
+libsm64 into the mod, is removed; sm64.dll is built from the libsm64 folder
+with its own Makefile (make lib). Without sm64.dll the mod logs why and shows
+a banner instead of starting Mario.
+
+MIT, like the mod.
+---
+ README.md   |  29 ++++++++----
+ build.ps1   |   5 +-
+ build.rs    |  35 --------------
+ src/lib.rs  |   5 ++
+ src/sm64.rs | 129 +++++++++++++++++++++++++++++++++++++++-------------
+ 5 files changed, 124 insertions(+), 79 deletions(-)
+ delete mode 100644 build.rs
+
+diff --git a/README.md b/README.md
+index c0fdba6..9a1cc6e 100644
+--- a/README.md
++++ b/README.md
+@@ -8,9 +8,10 @@ Work in progress.
+ 
+ You need your own Super Mario 64 ROM (US version): Mario's textures, sounds, animations and the
+ menu icons come from it, built on your PC the first time you play. Like other
+-[libsm64](https://github.com/libsm64/libsm64) projects, the mod itself includes Mario's 3D
+-model (his mesh) from the public [SM64 decompilation](https://github.com/n64decomp/sm64). This
+-repository contains no Nintendo data.
++[libsm64](https://github.com/libsm64/libsm64) projects, `sm64.dll` (libsm64, loaded by the mod
++from its folder) includes Mario's 3D model (his mesh) from the public
++[SM64 decompilation](https://github.com/n64decomp/sm64); `er_mario.dll` itself has none of it.
++This repository contains no Nintendo data.
+ 
+ ## Getting started
+ 
+@@ -74,7 +75,8 @@ to blank it out.
+ - The Tarnished stays in the game underneath and follows Mario, so doors, graces, menus, deaths
+   and saves keep working.
+ - The `libsm64` folder is libsm64 with a few patches for the mod (ladder climbing, carrying,
+-  dive grabs, head turning, model part export), compiled into the DLL.
++  dive grabs, head turning, model part export), built as `sm64.dll`. The mod loads it at
++  startup from its own folder (next to `er_mario.dll`).
+ - At launch and every 5 minutes after, the mod asks GitHub for the latest release's version. The
+   title screen, and a small note in the bottom left corner in game, say when there's a newer one.
+   Nothing is downloaded or installed automatically. `update_check = off` in er_mario.ini turns the
+@@ -82,21 +84,28 @@ to blank it out.
+ 
+ ## Building
+ 
+-Windows, with [Rust](https://rustup.rs), Visual Studio Build Tools (C++),
+-[LLVM](https://github.com/llvm/llvm-project/releases) (clang-cl compiles libsm64's C code) and
+-Python. Cargo fetches fromsoftware-rs itself (pinned to a commit in `Cargo.toml`):
++Two DLLs. `er_mario.dll`, the mod: Windows, with [Rust](https://rustup.rs), Visual Studio
++Build Tools (C++) and [LLVM](https://github.com/llvm/llvm-project/releases) (clang-cl compiles
++hudhook's C code). Cargo fetches fromsoftware-rs itself (pinned to a commit in `Cargo.toml`):
+ 
+ ```
+ git clone https://github.com/deltarooo/er-mario
++cd er-mario
++.\build.ps1
++```
++
++`sm64.dll`, libsm64 with the mod's patches: Python and a GCC with make, e.g.
++[w64devkit](https://github.com/skeeto/w64devkit), then copy `dist/sm64.dll` next to `er_mario.dll`:
++
++```
+ cd er-mario/libsm64
+ python import-mario-geo.py
+-cd ..
+-.\build.ps1
++make lib CC=gcc
+ ```
+ 
+ `import-mario-geo.py` (libsm64's own setup script) downloads Mario's model code, two files, from
+ the SM64 decompilation once and strips their texture data (textures come from the player's ROM).
+-The model code isn't part of this repository; it gets compiled into the DLL.
++The model code isn't part of this repository; it gets compiled into `sm64.dll`.
+ 
+ `build.ps1 -Dist <ER-Mario folder>` also copies the DLL into an ER-Mario folder (it renames
+ the old DLL first, so it works while the game is running; the next start loads the new one).
+diff --git a/build.ps1 b/build.ps1
+index 7f186a6..f248de6 100644
+--- a/build.ps1
++++ b/build.ps1
+@@ -1,6 +1,7 @@
+ # Builds the mod DLL on Windows (see "Building" in README.md). With -Dist, also puts it into an
+ # ER-Mario folder, e.g.  .\build.ps1 -Dist "$env:USERPROFILE\Documents\ER-Mario"
+-# Needs: Rust (rustup), Visual Studio Build Tools (C++), LLVM (clang-cl for libsm64's C code).
++# Needs: Rust (rustup), Visual Studio Build Tools (C++), LLVM (clang-cl for hudhook's C code).
++# libsm64 is built separately as sm64.dll (see README.md).
+ param(
+     # the ER-Mario folder the game loads the mod from (optional)
+     [string]$Dist = ""
+@@ -8,7 +9,7 @@ param(
+ $ErrorActionPreference = 'Stop'
+ $env:Path = [System.Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path', 'User')
+ $env:Path += ";$env:USERPROFILE\.cargo\bin;C:\Program Files\LLVM\bin"
+-# libsm64 is decompiled N64 C code: clang-cl handles it like the Linux cross build did
++# clang-cl compiles the C code (.cargo/config.toml has clang's CFLAGS)
+ $env:CC_x86_64_pc_windows_msvc = 'clang-cl'
+ # no local paths (user name) in the DLL's panic messages
+ $reg = Get-ChildItem "$env:USERPROFILE\.cargo\registry\src" -Directory -ErrorAction SilentlyContinue | Select-Object -First 1
+diff --git a/build.rs b/build.rs
+deleted file mode 100644
+index 0f1d38e..0000000
+--- a/build.rs
++++ /dev/null
+@@ -1,35 +0,0 @@
+-// Compiles libsm64 (SM64's decompiled Mario code, patched for the mod, in libsm64/) straight into
+-// the mod DLL.
+-use std::path::Path;
+-
+-fn main() {
+-    let root = Path::new("libsm64/src");
+-    // Mario's model code isn't in the repository: libsm64's script downloads it from the SM64
+-    // decompilation
+-    if !root.join("decomp/mario/geo.inc.c").exists() {
+-        panic!("Mario's model code is missing: run `python import-mario-geo.py` in the libsm64 folder first");
+-    }
+-    let dirs = ["", "decomp", "decomp/engine", "decomp/include/PR", "decomp/game", "decomp/pc",
+-                "decomp/pc/audio", "decomp/mario", "decomp/tools", "decomp/audio"];
+-    let mut build = cc::Build::new();
+-    for d in dirs {
+-        let Ok(entries) = std::fs::read_dir(root.join(d)) else { continue };
+-        for e in entries {
+-            let p = e.unwrap().path();
+-            if p.extension().is_some_and(|x| x == "c") {
+-                build.file(&p);
+-            }
+-        }
+-    }
+-    build
+-        .include("shim")
+-        .include(root)
+-        .include(root.join("decomp/include"))
+-        .define("GBI_FLOATS", None)
+-        .define("VERSION_US", None)
+-        .define("NO_SEGMENTED_MEMORY", None)
+-        .define("SM64_LIB_EXPORT", None)
+-        .warnings(false)
+-        .compile("sm64");
+-    println!("cargo:rerun-if-changed=libsm64/src");
+-}
+diff --git a/src/lib.rs b/src/lib.rs
+index 329e0ca..42cf2ff 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -644,6 +644,7 @@ fn init_sm64(export: bool) -> Option<Option<assets::model::MarioModel>> {
+     if SM64_READY.load(Ordering::Relaxed) {
+         return Some(None);
+     }
++    sm64::load().map_err(|e| log(e)).ok()?;
+     let rom = paths::read_rom().map_err(|e| log(e)).ok()?;
+     gameover::load_mask(&rom);
+     hud::load(&rom);
+@@ -674,6 +675,10 @@ fn startup() {
+         hud::setup_progress("Setting up ER Mario", 0.0, "Reading the ROM");
+     }
+     match init_sm64(build) {
++        None if sm64::load().is_err() => {
++            hud::set_setup(None);
++            notify("ER Mario needs sm64.dll (libsm64, see README) in the mod folder, next to er_mario.dll. Put it there, then restart the game.", "MARIO NEEDS SM64.DLL (SEE README)")
++        }
+         None => {
+             hud::set_setup(None);
+             notify("ER Mario needs a Super Mario 64 ROM (US version).\n\nPut your .z64 file in the mod folder, or set rom = ... in er_mario.ini, then restart the game.", "MARIO NEEDS A SUPER MARIO 64 ROM (SEE README)")
+diff --git a/src/sm64.rs b/src/sm64.rs
+index cb72cea..6e100a7 100644
+--- a/src/sm64.rs
++++ b/src/sm64.rs
+@@ -1,6 +1,15 @@
+-//! Minimal FFI to libsm64 (compiled into this DLL by build.rs).
++//! Minimal FFI to libsm64. libsm64 is not compiled into this DLL: it is loaded at runtime from
++//! sm64.dll next to er_mario.dll (built from the libsm64 folder with `make lib`), so the mod DLL
++//! itself carries none of SM64's decompiled code or Mario's mesh.
+ #![allow(dead_code)]
+ 
++use std::os::windows::ffi::OsStrExt;
++use std::sync::OnceLock;
++
++use windows::Win32::Foundation::HMODULE;
++use windows::Win32::System::LibraryLoader::{GetProcAddress, LoadLibraryW};
++use windows::core::{PCSTR, PCWSTR};
++
+ pub const TEXTURE_W: usize = 64 * 11;
+ pub const TEXTURE_H: usize = 64;
+ pub const GEO_MAX_TRIANGLES: usize = 1024;
+@@ -133,45 +142,101 @@ impl Drop for GeometryGuard<'_> {
+     }
+ }
+ 
+-unsafe extern "C" {
+-    pub fn sm64_global_init(rom: *const u8, out_texture: *mut u8);
+-    pub fn sm64_static_surfaces_load(surfaces: *const SM64Surface, count: u32);
+-    pub fn sm64_mario_create(x: f32, y: f32, z: f32) -> i32;
+-    pub fn sm64_mario_tick(
++/// The file libsm64 is loaded from, in the mod folder.
++pub const DLL: &str = "sm64.dll";
++
++/// Declares libsm64's functions: each becomes a `pub unsafe fn` of the same name and signature
++/// that calls the function of that name in sm64.dll (loaded on first use, see `load`).
++macro_rules! libsm64 {
++    ($( $(#[$m:meta])* fn $name:ident($($arg:ident: $ty:ty),* $(,)?) $(-> $ret:ty)?; )*) => {
++        struct Api {
++            $( $name: unsafe extern "C" fn($($ty),*) $(-> $ret)?, )*
++        }
++
++        impl Api {
++            unsafe fn resolve(lib: HMODULE) -> Result<Self, String> {
++                Ok(Self {
++                    $( $name: {
++                        let f = unsafe { GetProcAddress(lib, PCSTR(concat!(stringify!($name), "\0").as_ptr())) }
++                            .ok_or_else(|| format!("{DLL} has no {}: it is not er-mario's libsm64", stringify!($name)))?;
++                        unsafe { std::mem::transmute::<unsafe extern "system" fn() -> isize, unsafe extern "C" fn($($ty),*) $(-> $ret)?>(f) }
++                    }, )*
++                })
++            }
++        }
++
++        $(
++            $(#[$m])*
++            pub unsafe fn $name($($arg: $ty),*) $(-> $ret)? {
++                unsafe { (api().$name)($($arg),*) }
++            }
++        )*
++    };
++}
++
++static API: OnceLock<Result<Api, String>> = OnceLock::new();
++
++fn loaded() -> &'static Result<Api, String> {
++    API.get_or_init(|| {
++        let path = crate::paths::file(DLL);
++        let wide: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
++        // (an absolute path: Windows loads exactly that file, never one found on the search path)
++        let lib = unsafe { LoadLibraryW(PCWSTR(wide.as_ptr())) }.map_err(|e| format!("could not load {}: {e}", path.display()))?;
++        unsafe { Api::resolve(lib) }
++    })
++}
++
++/// Loads sm64.dll from the mod folder (once) and finds all of libsm64's functions in it.
++pub fn load() -> Result<(), String> {
++    loaded().as_ref().map(|_| ()).map_err(Clone::clone)
++}
++
++fn api() -> &'static Api {
++    match loaded() {
++        Ok(api) => api,
++        Err(e) => panic!("libsm64: {e}"),
++    }
++}
++
++libsm64! {
++    fn sm64_global_init(rom: *const u8, out_texture: *mut u8);
++    fn sm64_static_surfaces_load(surfaces: *const SM64Surface, count: u32);
++    fn sm64_mario_create(x: f32, y: f32, z: f32) -> i32;
++    fn sm64_mario_tick(
+         id: i32,
+         inputs: *const SM64MarioInputs,
+         out_state: *mut SM64MarioState,
+         out_buffers: *mut SM64MarioGeometryBuffers,
+     );
+-    pub fn sm64_mario_delete(id: i32);
+-    pub fn sm64_audio_init(rom: *const u8);
+-    pub fn sm64_audio_tick(queued: u32, desired: u32, buffer: *mut i16) -> u32;
+-    pub fn sm64_set_mario_position(id: i32, x: f32, y: f32, z: f32);
+-    pub fn sm64_set_mario_faceangle(id: i32, y: f32);
++    fn sm64_mario_delete(id: i32);
++    fn sm64_audio_init(rom: *const u8);
++    fn sm64_audio_tick(queued: u32, desired: u32, buffer: *mut i16) -> u32;
++    fn sm64_set_mario_position(id: i32, x: f32, y: f32, z: f32);
++    fn sm64_set_mario_faceangle(id: i32, y: f32);
+     /// SM64's interaction check against an object at (x, y, z): true if Mario's current move hits it
+     /// (also bounces him off / plays the hit sound like SM64).
+-    pub fn sm64_mario_attack(id: i32, x: f32, y: f32, z: f32, hitbox_height: f32) -> bool;
+-    pub fn sm64_set_mario_health(id: i32, health: u16);
+-    pub fn sm64_mario_kill(id: i32);
++    fn sm64_mario_attack(id: i32, x: f32, y: f32, z: f32, hitbox_height: f32) -> bool;
++    fn sm64_set_mario_health(id: i32, health: u16);
++    fn sm64_mario_kill(id: i32);
+     /// heals 1/4 wedge per count over the next ticks (SM64 coins give 4)
+-    pub fn sm64_mario_heal(id: i32, heal_counter: u8);
+-    pub fn sm64_play_sound_global(sound_bits: i32);
+-    pub fn sm64_set_mario_action(id: i32, action: u32);
+-    pub fn sm64_surface_object_create(object: *const SM64SurfaceObject) -> u32;
+-    pub fn sm64_surface_object_move(id: u32, transform: *const SM64ObjectTransform);
+-    pub fn sm64_surface_object_delete(id: u32);
+-    pub fn sm64_surface_find_floor_height(x: f32, y: f32, z: f32) -> f32;
+-    pub fn sm64_surface_find_ceil(x: f32, y: f32, z: f32, ceil: *mut *mut std::ffi::c_void) -> f32;
+-    pub fn sm64_surface_find_wall_collision(x: *mut f32, y: *mut f32, z: *mut f32, offset_y: f32, radius: f32) -> i32;
+-    pub fn sm64_mario_take_damage(id: i32, damage: u32, subtype: u32, x: f32, y: f32, z: f32);
++    fn sm64_mario_heal(id: i32, heal_counter: u8);
++    fn sm64_play_sound_global(sound_bits: i32);
++    fn sm64_set_mario_action(id: i32, action: u32);
++    fn sm64_surface_object_create(object: *const SM64SurfaceObject) -> u32;
++    fn sm64_surface_object_move(id: u32, transform: *const SM64ObjectTransform);
++    fn sm64_surface_object_delete(id: u32);
++    fn sm64_surface_find_floor_height(x: f32, y: f32, z: f32) -> f32;
++    fn sm64_surface_find_ceil(x: f32, y: f32, z: f32, ceil: *mut *mut std::ffi::c_void) -> f32;
++    fn sm64_surface_find_wall_collision(x: *mut f32, y: *mut f32, z: *mut f32, offset_y: f32, radius: f32) -> i32;
++    fn sm64_mario_take_damage(id: i32, damage: u32, subtype: u32, x: f32, y: f32, z: f32);
+     /// er-mario patch: the last tick's per-part matrices (4x4, row-vector, SM64 units); returns the part count.
+     /// er-mario patch: SM64's C-up head look (radians, relative to his body; active 0 = off)
+-    pub fn sm64_er_set_head(active: i32, pitch: f32, yaw: f32);
+-    pub fn sm64_er_set_ladder(rate: f32);
+-    pub fn sm64_er_lava(id: i32);
+-    pub fn sm64_er_mute(mute: i32);
+-    pub fn sm64_er_pick_up(id: i32);
+-    pub fn sm64_er_held(id: i32, pos: *mut f32) -> i32;
+-    pub fn sm64_er_drop(id: i32);
+-    pub fn sm64_er_get_parts(matrices: *mut f32, tri_part: *mut i32, local_pos: *mut f32, local_normal: *mut f32) -> i32;
++    fn sm64_er_set_head(active: i32, pitch: f32, yaw: f32);
++    fn sm64_er_set_ladder(rate: f32);
++    fn sm64_er_lava(id: i32);
++    fn sm64_er_mute(mute: i32);
++    fn sm64_er_pick_up(id: i32);
++    fn sm64_er_held(id: i32, pos: *mut f32) -> i32;
++    fn sm64_er_drop(id: i32);
++    fn sm64_er_get_parts(matrices: *mut f32, tri_part: *mut i32, local_pos: *mut f32, local_normal: *mut f32) -> i32;
+ }
