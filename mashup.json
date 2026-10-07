@@ -1,0 +1,275 @@
+{
+  "id": "sigf/er-mario",
+  "version": "0.4.0",
+  "name": "ER Mario",
+  "tagline": "Play Elden Ring as Super Mario 64's Mario: his real moveset, health meter and camera in the Lands Between, from your own ROM.",
+  "how_to_play": [
+    "Play Elden Ring as Mario with Super Mario 64's real moveset: triple jumps, wall kicks, long jumps, ground pounds, punches and kicks that hurt enemies.",
+    "Press Play: me3 starts Elden Ring offline. On an older SIGF app, open er-mario.me3 in %LOCALAPPDATA%\\SIGF\\profiles\\sigf-er-mario\\eldenring.",
+    "First start: a box on the title screen builds Mario from your ROM. When it says Setup complete, press any button, then press Play again.",
+    "Start a new character (the mod has its own save). SM64's 8-wedge health meter is your health; levels, weapons and stats change nothing.",
+    "F9 switches between Lakitu's camera and Elden Ring's. Xbox pads work as they are; PlayStation and other pads through Steam Input."
+  ],
+  "kind": "mashup",
+  "games": [
+    {
+      "game": "eldenring",
+      "role": "host",
+      "label": "Elden Ring",
+      "engine": "Elden Ring (FromSoftware) + me3 native DLL (Rust) + libsm64 (C)",
+      "apps": {
+        "steam": "1245620"
+      },
+      "runtime": "exe 2.7.1.0 (worldwide) or 2.7.1.1 (Japan) only: the mod stays off on any other version (src/version.rs, fromsoftware-rs 59fbd3b)"
+    },
+    {
+      "game": "sm64",
+      "role": "guest",
+      "label": "Super Mario 64",
+      "uses": "your own US ROM: Mario's textures, animations, sounds and menu icons, read by the mod; never launched"
+    }
+  ],
+  "requires": [
+    {
+      "id": "me3",
+      "version": "0.13.0",
+      "license": "Apache-2.0; linked, not shipped",
+      "page": "https://github.com/garyttierney/me3/releases/tag/v0.13.0",
+      "note": "install it with me3_installer.exe: Play starts it from where its installer puts it, with er-mario.me3, offline with Easy Anti-Cheat off"
+    },
+    {
+      "id": "sm64-rom",
+      "note": "your own Super Mario 64 (USA) ROM (.z64, .v64 or .n64): the app finds it on your PC or you pick it, and checks it by SHA-1. SIGF never ships or downloads it"
+    },
+    {
+      "id": "libsm64",
+      "version": "er-mario 89dd281",
+      "license": "CC0-1.0; built on your PC, never shipped",
+      "page": "https://github.com/deltarooo/er-mario/tree/89dd281f718f5fce55a239be12729b232e5b3b60/libsm64",
+      "note": "sm64.dll is built on your PC by the app on first install, from er-mario's own patched libsm64"
+    }
+  ],
+  "install": [
+    {
+      "game": "eldenring",
+      "strategy": "profile",
+      "loader": "me3",
+      "files": [
+        {
+          "src": "er-mario-eldenring.zip",
+          "dst": "{app}",
+          "root": "ER-Mario",
+          "unpack": true,
+          "contents": [
+            {
+              "path": "ER-Mario/er_mario.dll",
+              "sha256": "c06c30c2671af6339d0287bb28a4af4c655c47de868377223b3458488429f5d2"
+            },
+            {
+              "path": "ER-Mario/er_mario.ini",
+              "sha256": "500f8188f1dca3b3380ddd6a04116d3b7dc79343c43fdb73d151c0877335e6ec"
+            },
+            {
+              "path": "ER-Mario/er-mario.me3",
+              "sha256": "6db41bb19f70fb350b27a073ff360a6950ed759618d4e6f8ca060138c5c94a7f"
+            },
+            {
+              "path": "ER-Mario/licenses/er-mario-MIT.txt",
+              "sha256": "123c1bf9711227f4e53b785b2045ed8143469e72c97fda0c6a8e7ea178bf9805"
+            },
+            {
+              "path": "ER-Mario/licenses/fromsoftware-rs-MIT.txt",
+              "sha256": "f770a6842f3d7329228158454a470f0fc1830a97f52a1e1e2b9f1f4daf94fc35"
+            },
+            {
+              "path": "ER-Mario/licenses/hudhook-MIT.txt",
+              "sha256": "320d367162d31649478cdbfdb498c3a05c68d5dcfb44ffb2a78d92b20475bd3f"
+            },
+            {
+              "path": "ER-Mario/licenses/libsm64-CC0.md",
+              "sha256": "f4e7f373b9b996950337e8d41a4a2939c2d90b7725e9baf3d5084a22717ad328"
+            },
+            {
+              "path": "ER-Mario/licenses/minhook-BSD-2-Clause.txt",
+              "sha256": "4f21f857550d7be854da6ea5f2da4e6775ca4e3fbb535e4f3d961c47d0bf3335"
+            },
+            {
+              "path": "ER-Mario/licenses/rust-crates.txt",
+              "sha256": "8d84a802f28bd26365274e04147ff54684959a5597d99c92f89ded8b6d32f853"
+            },
+            {
+              "path": "ER-Mario/README.md",
+              "sha256": "bdfe889e1f3b7fa650414b48dac2777700081e735395ce05727dd43eded42fb1"
+            }
+          ],
+          "url": "https://github.com/SIGFAI/er-mario/releases/download/v0.4.0/er-mario-eldenring.zip",
+          "sha256": "b91367f039c850369044c4d2eee375666ae8a26c8dd4529ae146775656e40f88",
+          "size": 1381541
+        }
+      ]
+    }
+  ],
+  "own_copies": [
+    {
+      "game": "sm64",
+      "label": "Super Mario 64 (USA)",
+      "names": [
+        "super mario 64",
+        "mario 64",
+        "sm64"
+      ],
+      "rom": {
+        "as": "baserom.us.z64",
+        "sha1": [
+          "9bef1128717f958171a4afac3ed78ee2bb4e86ce"
+        ],
+        "extensions": [
+          ".z64",
+          ".v64",
+          ".n64"
+        ],
+        "size": 8388608,
+        "format": "n64"
+      },
+      "step": "eldenring",
+      "to": "{app}"
+    }
+  ],
+  "player_build": [
+    {
+      "id": "sm64-dll",
+      "label": "Mario's library (sm64.dll)",
+      "step": "eldenring",
+      "minutes": 5,
+      "toolchain": [
+        "w64devkit-2.10.0",
+        "python-3.12.10"
+      ],
+      "script": {
+        "name": "build-sm64-dll.sh",
+        "url": "https://github.com/SIGFAI/er-mario/releases/download/v0.4.0/build-sm64-dll.sh",
+        "sha256": "83075086673a2ea7d4deb5eddacd62fe1bb3cfd5269244c3a2ce8e6dee62e0b8",
+        "size": 3105
+      },
+      "inputs": [
+        {
+          "name": "libsm64",
+          "url": "https://github.com/deltarooo/er-mario/archive/89dd281f718f5fce55a239be12729b232e5b3b60.zip",
+          "sha256": "386dcc925b3e5041d834176888c2ff728a9e375973308bf6453343588131eadc",
+          "size": 985330,
+          "unpack": true,
+          "root": "er-mario-89dd281f718f5fce55a239be12729b232e5b3b60/libsm64"
+        },
+        {
+          "name": "geo.inc.c",
+          "url": "https://raw.githubusercontent.com/n64decomp/sm64/06ec56df7f951f88da05f468cdcacecba496145a/actors/mario/geo.inc.c",
+          "sha256": "fc276e326a9cb22f55dfae8349b0ff746b9a7db7c108074a47508f3e2b225364",
+          "size": 82801
+        },
+        {
+          "name": "model.inc.c",
+          "url": "https://raw.githubusercontent.com/n64decomp/sm64/06ec56df7f951f88da05f468cdcacecba496145a/actors/mario/model.inc.c",
+          "sha256": "3c28959f915121cd94daab7941e144078098b3cac668fdc70817f4127c549e8f",
+          "size": 382288
+        }
+      ],
+      "outputs": [
+        {
+          "name": "sm64.dll",
+          "to": "{app}"
+        }
+      ]
+    }
+  ],
+  "launch": [
+    {
+      "game": "eldenring",
+      "me3": {
+        "profile": "{app}/er-mario.me3"
+      }
+    }
+  ],
+  "platforms": [
+    "windows"
+  ],
+  "files": [
+    {
+      "name": "er-mario-eldenring.zip",
+      "url": "https://github.com/SIGFAI/er-mario/releases/download/v0.4.0/er-mario-eldenring.zip",
+      "sha256": "b91367f039c850369044c4d2eee375666ae8a26c8dd4529ae146775656e40f88",
+      "size": 1381541
+    },
+    {
+      "name": "build-sm64-dll.sh",
+      "url": "https://github.com/SIGFAI/er-mario/releases/download/v0.4.0/build-sm64-dll.sh",
+      "sha256": "83075086673a2ea7d4deb5eddacd62fe1bb3cfd5269244c3a2ce8e6dee62e0b8",
+      "size": 3105
+    }
+  ],
+  "source": {
+    "repo": "https://github.com/deltarooo/er-mario",
+    "license": "MIT",
+    "upstream_license": "MIT",
+    "tag": "v0.4.0",
+    "commit": "89dd281f718f5fce55a239be12729b232e5b3b60",
+    "hosted": "https://github.com/SIGFAI/er-mario",
+    "patches": [
+      "sigf/patches/0001-load-libsm64-from-sm64-dll-at-runtime.patch"
+    ],
+    "built": {
+      "by": "SIGF",
+      "commit": "89dd281f718f5fce55a239be12729b232e5b3b60",
+      "builder": "AWS EC2 i-0e67d08436a64bcef (c6i.2xlarge, Windows Server 2022, terminated after the build); rustc 1.99.0, MSVC link 14.44.35229, clang-cl 23.1.3 (hudhook's MinHook, as upstream's build.ps1)",
+      "artifacts": {
+        "er_mario.dll": "c06c30c2671af6339d0287bb28a4af4c655c47de868377223b3458488429f5d2",
+        "LICENSE": "123c1bf9711227f4e53b785b2045ed8143469e72c97fda0c6a8e7ea178bf9805",
+        "README.md": "bdfe889e1f3b7fa650414b48dac2777700081e735395ce05727dd43eded42fb1",
+        "rust-crates.txt": "8d84a802f28bd26365274e04147ff54684959a5597d99c92f89ded8b6d32f853"
+      }
+    },
+    "linked": [
+      {
+        "name": "libsm64 (er-mario's patched copy, libsm64/)",
+        "repo": "https://github.com/deltarooo/er-mario",
+        "commit": "89dd281f718f5fce55a239be12729b232e5b3b60",
+        "license": "CC0-1.0 (built on the player's PC, never shipped)"
+      },
+      {
+        "name": "n64decomp/sm64 (Mario geometry, actors/mario)",
+        "repo": "https://github.com/n64decomp/sm64",
+        "commit": "06ec56df7f951f88da05f468cdcacecba496145a",
+        "license": "none (built on the player's PC, never shipped)"
+      },
+      {
+        "name": "fromsoftware-rs",
+        "repo": "https://github.com/vswarte/fromsoftware-rs",
+        "commit": "59fbd3b3b7daaf14aca47c9f73530493dba6bc79",
+        "license": "MIT OR Apache-2.0 (linked into er_mario.dll)"
+      }
+    ]
+  },
+  "media": {},
+  "built_by": {
+    "author": "deltarooo",
+    "authors": [
+      "deltarooo",
+      "libsm64 contributors",
+      "Vincent Swarte (fromsoftware-rs)"
+    ],
+    "packaged_by": "SIGF"
+  },
+  "idea_by": "deltarooo",
+  "built_at": "2026-10-07T00:00:00.000Z",
+  "conflicts": [
+    "sigf/minecraft-ring"
+  ],
+  "status": "beta",
+  "issues": "https://github.com/deltarooo/er-mario/issues",
+  "notes": [
+    "You need Elden Ring on Steam (exe 2.7.1.0, or 2.7.1.1 in Japan: on any other version the mod stays off), me3 0.13.0 installed with its me3_installer.exe, and your own Super Mario 64 (USA) ROM, which SIGF never ships or downloads.",
+    "The first install builds Mario's library (sm64.dll) on your PC: the app downloads a compiler and Python once (about 80 MB) and the pinned libsm64 sources, then builds for a few minutes. SIGF built er_mario.dll from the author's source, changed only to load that library.",
+    "Offline only, never online: me3 starts Elden Ring with Easy Anti-Cheat off and its own save ER0000_mario.sl2, so your normal save is untouched. Restore leaves that save.",
+    "Work in progress: you may clip through some elevators, cutscenes show a crumpled Mario, and big bosses can go wild after a throw. Report bugs to the author with the two files of the logs folder in the profile folder.",
+    "Streaming: use window or display capture, or the HUD does not show."
+  ]
+}
